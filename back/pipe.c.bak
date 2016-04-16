@@ -1,0 +1,55 @@
+/***********************************
+*
+*readme
+*用于创建无名管道
+*功能：父进程向管道里面写入数据
+*NOTES:如果管道中没有数据，读取将会一直阻塞
+*等待写入完成后只能读取。
+*
+***********************************/
+
+
+#include <unistd.h>
+#include <stdio.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <strings.h>
+
+int main()
+{
+	char Rebuff[128];
+	char send[] = "hello linux";
+	int ret;
+	int pipefd[2];
+	pid_t pid;
+	ret = pipe(pipefd);								// 创建管道
+	if(ret < 0){
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));	
+		return -1;				
+	}
+	pid = fork();									// 创建子进程
+	if(0 == pid ){									// 子进程
+		close(pipefd[1]);							// 关闭写入端
+		bzero(Rebuff, 128*sizeof(char));
+		ret = read(pipefd[0], Rebuff, 128);
+		printf("bytes is:%d, read buff is:%s\n", ret, Rebuff);
+	}
+	else if( pid > 0){								// 父进程
+		close(pipefd[0]);							// 关闭读取端
+		sleep(10);
+		ret = write(pipefd[1], send, sizeof(send));
+		if(ret != sizeof(send)){
+			printf("errno value: %d, it means: %s\n",
+					errno, strerror(errno));
+			return -1;
+		}
+		printf("write ok!\n");
+		sleep(10);
+	}
+	else{											// 创建失败
+		printf("errno value: %d, it means:%d\n",
+			errno, strerror(errno));								
+	}
+	return 0;
+}
