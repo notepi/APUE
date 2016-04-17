@@ -1,0 +1,30 @@
+/*************************************************
+*
+*readme
+*使用fopen打开文件
+*NOTES:close不能替代fclose
+*close的参数是int，fclose的是指针
+*
+**************************************************/
+#include <stdio.h>
+#include <errno.h>
+
+int main(){
+	int ret;
+	FILE *fp;
+	// 打开一个读写文件，并追加到尾部，如果文件不存在就创建
+	fp = fopen("./a.c", "a+");
+	if(NULL == fp){
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));		
+	}
+	
+//	ret = fclose(fp);			// 利用fclose关闭
+	ret = close(fp);
+	if(ret < 0){
+		printf("errno value: %d, it means: %s\n",
+		errno, strerror(errno));
+		return -1;
+	}
+	// 利用close关闭
+}
