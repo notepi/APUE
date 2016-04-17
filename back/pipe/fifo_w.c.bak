@@ -1,0 +1,51 @@
+/*************************************************
+*
+*readme
+*用于测试管道通信
+*功能：用于向管道写入数据
+*NOTES:当管道没有被读取时，写入被阻塞
+*
+**************************************************/
+#include <stdio.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+
+int main()
+{
+	int ret;
+	int fd;
+	int size;
+	char *buf = "i'm linux!";
+/*	ret = mkfifo("./fifo", 0777);				// 创建有名管道
+	if((ret < 0) && (EEXIST != errno) ){		// 创建失败
+		printf("failed to call mkfifo!\n");
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));
+		return -1;
+	}
+*/	
+	fd = open("./fifo", O_WRONLY | O_TRUNC);	// 以只读方式打开有名管道, 每次都截短到0
+	if(fd < 0){
+		printf("failed to call open!\n");
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));
+		return -1;
+	}
+	size = strlen(buf);
+	ret = write(fd, buf, size);			// 写入数据
+/*	printf("next of write!\n");
+*/
+	printf("sizeof buf is:%d", size);
+	if(size !=  ret){
+		printf("failed to write buff!\n");
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));
+	} 
+	close(fd);
+	printf("bytes is:%d, write buff successfully!\n", ret);
+	return 1;
+	
+}
