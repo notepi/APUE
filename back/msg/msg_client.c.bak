@@ -1,0 +1,105 @@
+/*************************************************
+*
+*readme
+*创建有名内存用于进程间通信
+*功能：服务器在消息队列中写入数据，客户端读取等待
+*NOTES:代码并不健壮，消息队列可以被马上取消
+*
+**************************************************/
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+
+#define MESSAGE_BUFF	128 
+struct msgbuf {
+   long mtype;       												/* message type, must be > 0 */
+   char mtext[MESSAGE_BUFF];										/* message data */
+};
+
+int main()
+{
+	struct msgbuf msgsz;
+	void *retptr;
+	int ret;
+	int msqid;
+	pid_t pid;
+	key_t key;
+	
+	key = ftok("./a.c", 'a');
+	if(key < 0){
+		printf("failed to call ftok!\n");
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));
+		return -1;
+	}
+	
+	msqid = msgget(key, IPC_CREAT | 0777);							// 创建消息队列(创建文件)
+	if( msqid < 0){
+		printf("failed to call msgget!\n");
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));
+		return -1;
+	}	
+	
+	ssize_t rec;
+	struct msgbuf recv;
+	recv.mtype = 100;
+	printf("enter!\n");
+	sleep(10);
+	while(1){
+		bzero(recv.mtext, MESSAGE_BUFF);
+		rec = msgrcv(msqid, (void *)&recv, MESSAGE_BUFF, 
+						recv.mtype, 0);							// 阻塞模式读取数据
+		if( rec < 0){
+			printf("failed to call msgrcv!\n");
+			printf("errno value: %d, it means: %s\n",
+					errno, strerror(errno));
+			return -1;
+		}		
+		printf("read buff is:%s", recv.mtext);
+	}
+
+	ret = msgctl(msqid, IPC_RMID, NULL);							// 取消消息队列(删除文件)
+	if(ret < 0){
+		printf("failed to call shmctl!\n");
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));
+		return -1;
+	}
+	
+	return 1;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

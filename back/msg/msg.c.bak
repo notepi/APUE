@@ -1,0 +1,126 @@
+/*************************************************
+*
+*readme
+*创建无名消息队列用于进程间通信
+*功能：父进在消息队列中写入数据，子进程读取等待
+*NOTES:代码并不健壮,父亲进程连续写入2次不同数据，子进程读取
+*两次的数据不同
+*
+**************************************************/
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+
+#define MESSAGE_BUFF	128 
+struct msgbuf {
+   long mtype;       												/* message type, must be > 0 */
+   char mtext[MESSAGE_BUFF];										/* message data */
+};
+
+int main()
+{
+	struct msgbuf msgsz;
+	void *retptr;
+	int ret;
+	int msqid;
+	pid_t pid;
+	
+	msqid = msgget(IPC_PRIVATE, 0777);								// 创建消息队列(创建文件)
+	if( msqid < 0){
+		printf("failed to call msgget!\n");
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));
+		return -1;
+	}	
+	
+	pid = fork();
+	if(0 == pid){// 子进程
+		printf("i'm child!\n");
+		ssize_t rec;
+		struct msgbuf recv;
+		recv.mtype = 100;
+		while(1){
+			bzero(recv.mtext, MESSAGE_BUFF);
+			rec = msgrcv(msqid, (void *)&recv, MESSAGE_BUFF, 
+							recv.mtype, 0);							// 阻塞模式读取数据
+			if( rec < 0){
+				printf("failed to call msgrcv!\n");
+				printf("errno value: %d, it means: %s\n",
+						errno, strerror(errno));
+				return -1;
+			}		
+			printf("read buff is:%s", recv.mtext);
+
+		}
+		return 1;
+
+	}
+	else if(pid > 0){// 父进程
+		printf("msqid is:%d\n", msqid);
+		msgsz.mtype = 100;											// 消息类型
+		while(1)
+		{
+			printf("please input message!\n");
+			fflush(stdin);
+			fgets(msgsz.mtext, MESSAGE_BUFF, stdin);				// 写入消息
+			ret = msgsnd(msqid, (void *)&msgsz, 
+							MESSAGE_BUFF, 0);						// 阻塞模式发送消息(写入文件)
+			if( ret < 0){
+				printf("failed to call msgsnd!\n");
+				printf("errno value: %d, it means: %s\n",
+						errno, strerror(errno));
+				return -1;
+			}
+		}
+	}
+	else{// 创建失败
+		printf("errno value: %d, it means:%d\n",
+			errno, strerror(errno));
+	}
+	
+	ret = msgctl(msqid, IPC_RMID, NULL);							// 取消消息队列(删除文件)
+	if(ret < 0){
+		printf("failed to call shmctl!\n");
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));
+		return -1;
+	}
+
+	printf("msqid is:%d\n", msqid);
+	system("ipcs -q");
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
