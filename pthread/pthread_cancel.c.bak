@@ -1,0 +1,83 @@
+
+/*************************************************
+*
+*readme
+*功能：多线程，取消，分离
+*NOTES:1.被cancel取消的进程的退出码是-1，
+*在/usr/include/pthread.h 205行
+*man pthreads查看具体信息
+*************************************************/
+
+
+#include <pthread.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+
+void * NEW_Pthread1(void *arg)
+{
+	int cuid;
+	printf("receive:%s\n", arg);
+	
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);				// 允许关闭线程(不是直接取消，需要设置取消点)
+	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);				// 遇到取消点关闭线程
+
+	cuid = pthread_self();												// 获取线程ID
+	printf("uid is:%u\n", cuid);
+	
+	sleep(10);															// 等待父线程取消子线程
+	
+	printf("message 1!\n");												// 第一个取消点
+	printf("message 2!\n");												// 第二个取消点
+	
+	pthread_exit((void *)1);
+}
+
+int main()
+{
+	
+	pthread_t	uid1, uid2, c_uid;
+	pid_t		pid;	
+	int ret;
+	void *retval;
+	
+
+	pid = getpid();																// 获取进程ID
+	c_uid = pthread_self();														// 获取线程ID
+	printf("pid is:%u\n", pid);
+	printf("c_uid is:%u\n", c_uid);
+	
+	ret = pthread_create(&uid1, NULL,  NEW_Pthread1, "im new pthread!");		// 创建线程
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+
+	sleep(1);																	// 等待子进程就绪
+	
+	ret = pthread_cancel(uid1);													// 取消线程
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+
+	ret = pthread_join(uid1, &retval);											// 分离线程，获取退出码
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	
+	printf("phread %u exit code is:%d\n", uid1, (int *)retval);
+
+	
+	printf("im main pthread!\n");
+	return 0;
+}

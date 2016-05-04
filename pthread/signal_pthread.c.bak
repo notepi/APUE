@@ -1,0 +1,103 @@
+/********************************************************************
+*
+*readme
+*功能：子进程接收父进程发来的信号，
+*子进程接收并处理信号
+*
+*NOTE:
+*1.信号注册函数是针对整个进程的，
+*任何进程注册了信号处理函数，任何进程中接收到这个信号都是相同的动作
+*2.子线程屏蔽的信号，对其他线程无影响
+*3.进程屏蔽的信号对所有线程都有影响
+********************************************************************/
+#include <pthread.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+
+
+void func(int sig)
+{
+	int cuid;
+	cuid = pthread_self();
+	printf("%u pthread receive signal is:%d\n", cuid, sig);
+	
+}
+
+void *pthread1(void *arg)
+{
+	int cuid;
+	sigset_t set;
+	
+	sigemptyset(&set);														// 清空信号集
+	sigaddset(&set, SIGUSR1);												// 添加信号
+	pthread_sigmask(SIG_SETMASK, &set, NULL);								// 设置线程屏蔽信号集
+
+	cuid = pthread_self();	
+	printf("%u's signal hander is ready!\n", cuid);
+	
+	pause();																// 挂起等待信号
+	
+	printf("%u receive %s\n", cuid, arg);									// 打印回到进程语句
+}
+
+void *pthread2(void *arg)
+{
+	int cuid;
+	struct sigaction act;
+	
+    memset(&act, 0x0, sizeof(act));
+    act.sa_handler = func;
+    sigaction(SIGUSR1, &act, NULL);											// 注册信号处理函数
+	
+	cuid = pthread_self();	
+	printf("%u's signal hander is ready!\n", cuid);
+	
+	pause();																// 挂起等待信号
+	
+	printf("%u receive %s\n", cuid, arg);									// 打印回到进程语句
+}
+
+int main()
+{
+	pthread_t	uid1, uid2;
+	int ret;
+	sigset_t set;
+	
+	sigemptyset(&set);														// 清空信号集
+	sigaddset(&set, SIGUSR1);												// 添加信号
+	sigprocmask(SIG_SETMASK, &set, NULL);									// 设置屏蔽信号集
+	
+	ret = pthread_create(&uid1, NULL,  pthread1, "im new pthread!");		// 创建线程
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	
+	ret = pthread_create(&uid2, NULL,  pthread2, "im new pthread!");		// 创建线程
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	
+	sleep(10);																// 等待子线程就绪
+	pthread_kill(uid1, SIGUSR1);											// 给子线程发送信号
+	sleep(10);
+	pthread_kill(uid2, SIGUSR1);											// 给子线程发送信号
+	
+	printf("signal!\n");
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	
+	while(1);																// 等待	
+}

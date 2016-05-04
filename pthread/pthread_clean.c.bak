@@ -1,0 +1,93 @@
+/*************************************************
+
+*readme
+*功能：多线程，取消，分离
+*NOTES:
+*1.触发可能： 
+*       1. When a thread is canceled, all of the stacked clean-up handlers  are  popped  and
+*          executed in the reverse of the order in which they were pushed onto the stack.
+*
+*       2. When  a  thread  terminates by calling pthread_exit(3), all clean-up handlers are
+*          executed as described in the preceding point.  (Clean-up handlers are not  called
+*          if the thread terminates by performing a return from the thread start function.)
+*
+*       3. When  a  thread  calls pthread_cleanup_pop() with a nonzero execute argument, the
+*          top-most clean-up handler is popped and executed.
+*2.先注册的退出函数，后退出
+*3.pthread_cleanup_pop(0)销毁退出函数，且不执行
+**************************************************/
+
+
+#include <pthread.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+
+
+void func_exit1(void *arg)
+{
+	printf("func_exit1 receive:%s\n", (char *) arg);
+}
+
+void func_exit2(void *arg)
+{
+	printf("func_exit2 receive:%s\n", (char *) arg);
+}
+
+void func_exit3(void *arg)
+{
+	printf("func_exit3 receive:%s\n", (char *) arg);
+}
+
+void * NEW_Pthread1(void *arg)
+{
+	int cuid;
+
+
+	cuid = pthread_self();												// 获取线程ID
+	
+	pthread_cleanup_push(func_exit1, "the first");						// 设置第一个退出函数
+	pthread_cleanup_push(func_exit2, "the second");						// 设置第二个退出函数
+	pthread_cleanup_push(func_exit3, "the third");						// 设置第三个退出函数
+
+	
+	sleep(10);
+	pthread_cleanup_pop(1);												// 执行第一个退出函数
+	pthread_cleanup_pop(0);												// 销毁第二个退出函数
+	pthread_cleanup_pop(2);												// 执行第三个退出函数
+	
+	pthread_exit((void *)1);
+}
+
+int main()
+{
+	
+	pthread_t	uid1, c_uid;
+	int ret;
+	
+	c_uid = pthread_self();														// 获取线程ID
+	printf("c_uid is:%u\n", c_uid);
+	ret = pthread_create(&uid1, NULL,  NEW_Pthread1, "im new pthread!");		// 创建线程
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	
+	sleep(1);																	// 等待子进程就绪
+	ret = pthread_cancel(uid1);													// 取消线程
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	printf("i‘m main pthread!\n");
+
+	while(1);																	// 保持进程不退出
+	return 0;
+}

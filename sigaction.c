@@ -1,1 +1,0 @@
-signal 和sigaction有什么区别

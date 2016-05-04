@@ -35,8 +35,9 @@ int main()
 		printf("failed to call ftok!\n");
 		printf("errno value: %d, it means: %s\n",
 				errno, strerror(errno));
+		return -1;
 	}
-		
+	
 	msqid = msgget(key, IPC_CREAT | 0777);							// 创建消息队列(创建文件)
 	if( msqid < 0){
 		printf("failed to call msgget!\n");
@@ -44,22 +45,23 @@ int main()
 				errno, strerror(errno));
 		return -1;
 	}	
-
-	printf("msqid is:%d\n", msqid);
-	msgsz.mtype = 100;											// 消息类型
-	while(1)
-	{
-		printf("please input message!\n");
-		fflush(stdin);
-		fgets(msgsz.mtext, MESSAGE_BUFF, stdin);				// 写入消息
-		ret = msgsnd(msqid, (void *)&msgsz, 
-						MESSAGE_BUFF, 0);						// 阻塞模式发送消息(写入文件)
-		if( ret < 0){
-			printf("failed to call msgsnd!\n");
+	
+	ssize_t rec;
+	struct msgbuf recv;
+	recv.mtype = 100;
+	printf("enter!\n");
+	sleep(10);
+	while(1){
+		bzero(recv.mtext, MESSAGE_BUFF);
+		rec = msgrcv(msqid, (void *)&recv, MESSAGE_BUFF, 
+						recv.mtype, 0);								// 阻塞模式读取数据
+		if( rec < 0){
+			printf("failed to call msgrcv!\n");
 			printf("errno value: %d, it means: %s\n",
 					errno, strerror(errno));
 			return -1;
-		}
+		}		
+		printf("read buff is:%s", recv.mtext);
 	}
 
 	ret = msgctl(msqid, IPC_RMID, NULL);							// 取消消息队列(删除文件)
@@ -69,6 +71,9 @@ int main()
 				errno, strerror(errno));
 		return -1;
 	}
+	
+	return 1;
+
 }
 
 

@@ -1,0 +1,67 @@
+/*****************************************************
+*readme
+*功能：获取退出码
+*NOTES:
+*1.join过（已被分离,de）的进程无法被join（分离）
+*2.已经退出的进程仍旧可以获取退出码
+*******************************************************/
+#include <pthread.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+
+void * NEW_Pthread1(void *arg)
+{
+	int cuid;
+
+	printf("receive:%s\n", arg);
+	cuid = pthread_self();												// 获取线程ID
+	printf("uid is:%u\n", cuid);
+	
+//	sleep(10);
+	
+	printf("I'm child pthread!\n");
+	pthread_exit((void *)1);
+	
+}
+
+int main()
+{
+	
+	pthread_t	uid1, c_uid;
+	pid_t		pid;	
+	int ret;
+	void *retval;
+	
+
+	pid = getpid();																// 获取进程ID
+	c_uid = pthread_self();														// 获取线程ID
+	printf("pid is:%u\n", pid);
+	printf("c_uid is:%u\n", c_uid);
+	
+	ret = pthread_create(&uid1, NULL,  NEW_Pthread1, "im new pthread!");		// 创建线程
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	
+	sleep(5);																	// 等待子进程先结束
+	// 分离线程，获取退出码
+	ret = pthread_join(uid1, &retval);											// 阻塞到join的线程退出											
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	
+	printf("phread %u exit code is:%d\n", uid1, (int *)retval);					// 打印退出码
+	
+	printf("im main pthread!\n");
+	return 0;
+}
