@@ -19,7 +19,7 @@ void * NEW_Pthread1(void *arg)
 {
 	int cuid;
 
-	printf("receive:%s\n", arg);
+	printf("receive:%s\n", (char *)arg);
 	cuid = pthread_self();												// 获取线程ID
 	printf("uid is:%u\n", cuid);
 	

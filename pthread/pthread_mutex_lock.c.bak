@@ -1,0 +1,102 @@
+/****************************************************************
+*readme
+*功能：互斥量
+*NOTES:
+*1.当其他线程获取互斥锁后，再获取互斥锁的线程将被阻塞到
+*其他线程释放互斥锁
+*2.pthread_mutex_destroy是将互斥量恢复到原始状态
+*3.当互斥量被占用时，pthread_mutex_destroy将操作失败并返回EBUSY
+*
+*****************************************************************/
+#include <pthread.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+
+int i = 0;
+
+pthread_mutex_t mutex;														// 互斥量
+
+void *pthread1(void *arg)
+{
+	int cuid;
+	int ret;
+	
+	cuid = pthread_self();
+	printf("%u pthread receive:%s\n", cuid, (char *)arg);
+	
+	ret = pthread_mutex_lock(&mutex);										// 获取互斥量										// 获取互斥量
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return (void*)-1;
+	}
+	sleep(1);																// 休眠1s让主线程先运行
+
+	printf("global value is:%d\n", i);										// 打印全局变量
+	
+	sleep(5);																// 等待主线程释放
+	ret = pthread_mutex_unlock(&mutex);										// 释放互斥量
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return (void*)-1;
+	}
+}
+
+int main()
+{
+	int ret;
+	pthread_t	uid1;
+	
+	ret = pthread_mutex_init(&mutex, NULL);									// 初始化互斥锁为默认属性
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	
+	ret = pthread_create(&uid1, NULL,  pthread1, "im new pthread!");		// 子创建线程
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	ret = pthread_mutex_lock(&mutex);										// 获取互斥量
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	
+	i++;																	// 操作全局变量
+	
+	ret = pthread_mutex_unlock(&mutex);										// 释放互斥量
+		if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	
+	sleep(2);																// 等待子进程获取锁
+	ret = pthread_mutex_destroy(&mutex);									// 摧毁互斥锁
+	if( 0 != ret){
+		if( EBUSY == ret){
+			printf("lock is busy!\n");
+		}
+		else{
+			printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+			assert(0);
+			return -1;
+		}
+	}
+	
+	while(1);																// 等待子进程运行
+
+	return 1;
+}
