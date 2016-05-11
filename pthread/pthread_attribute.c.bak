@@ -1,0 +1,97 @@
+/****************************************
+*readme
+*功能：设置并了解线程相关属性
+*NOTE:
+*1.线程未退出时，join处在阻塞态无法获取，
+*2.线程属性在创建之出就设置好
+*3.线程栈区大学不能小于最小值PTHREAD_STACK_MIN 
+*  (16384) bytes，否则报错 
+*4.不是所有系统都支持线程栈的修改
+****************************************/
+#include <pthread.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+
+void *pthread1(void *arg)
+{
+	int ret;
+	printf("receive %s\n", arg);											// 打印进入线程语句
+	return (void *)0;
+}
+
+int main()																	// 释放内存
+{
+	int ret;	
+	pthread_t	uid1;
+	pthread_attr_t * attr;
+	int detachstate;
+	int stacksize;
+	
+	attr = (pthread_attr_t *)malloc(100);									// 获取动态内存
+	ret = pthread_attr_init(attr);											// 初始化动态内存
+	if( 0 != ret){
+		printf("failed to call pthread_attr_init!\n");
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+	}
+	pthread_attr_setdetachstate(attr, PTHREAD_CREATE_JOINABLE);				// 默认可分离，设置可分离
+	
+	pthread_attr_getdetachstate(attr, &detachstate);						// 获取分离属性
+	switch(detachstate){
+		case PTHREAD_CREATE_DETACHED:
+			printf("PTHREAD_CREATE_DETACHED!\n");
+			break;
+		case PTHREAD_CREATE_JOINABLE:
+			printf("PTHREAD_CREATE_JOINABLE!\n");
+			break;
+		default:
+			printf("default!\n");
+			break;
+	}
+	
+	ret = pthread_attr_setstacksize(attr, 17384);							// 设置线程栈区大小
+	if( 0 != ret){
+		printf("failed to call pthread_attr_setstacksize!\n");
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+	}
+	ret = pthread_attr_getstacksize(attr, &stacksize);						// 读取线程栈区大小
+	if( 0 != ret){
+		printf("failed to call pthread_attr_getstacksize!\n");
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+	}
+	printf("stacksize is:%d\n", stacksize);
+
+
+	ret = pthread_create(&uid1, attr,  pthread1, "im new pthread!");		// 创建线程
+	if( 0 != ret){
+		printf("failed to call pthread_create!\n");
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	
+	ret = pthread_join(uid1, NULL);											// 分离线程，获取退出码
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+		return -1;
+	}
+	printf("join!\n");
+	
+	free(attr);																// 释放内存
+	ret = pthread_attr_destroy(attr);										// 销毁属性
+	if( 0 != ret){
+		printf("errno value: %d, it means: %s\n",ret, strerror(ret));
+		assert(0);
+	}
+	
+	while(1);																// 等待其他进程执行
+	
+}
