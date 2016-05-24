@@ -1,0 +1,81 @@
+/********************************************************
+*
+*readme
+*用于测试信号捕捉
+*功能：阻塞并捕捉SIGQUIT（ctrl+\）信号
+*NOTES:	
+*1.sigprocmask解除信号阻塞时，还未返回就接收到了信号
+*	相同的信号多次发生且被阻塞并不能进行排队，只捕捉一次
+*2.不同的信号发生以后排队，且后进先出
+*3.sigsuspend收到一个信号就返回，且在信号处理函数返回后
+*	才返回
+*4.sigsuspend执行时，重新设置阻塞信号。返回会重新配置成
+*	进程原先的阻塞信号
+*********************************************************/
+#include <stdio.h>
+#include <signal.h>
+#include <errno.h>
+
+void Func_HUP(int sig)
+{
+	printf("receive signal:%d\n", sig);
+}
+void Func_INT(int sig)
+{
+	printf("receive signal:%d\n", sig);
+}
+
+int main()
+{
+	int ret;
+	
+	sigset_t SigNewSet, SigOldSet, Sigset;
+	if(SIG_ERR == signal(SIGHUP, Func_HUP)){				// 捕捉信号
+		printf("failed to call signal!\n");
+		return -1;
+	}
+	
+	if(SIG_ERR == signal(SIGINT, Func_INT)){				// 捕捉信号
+		printf("failed to call signal!\n");
+		return -1;
+	}
+	
+	sigemptyset(&Sigset);									// 清空信号量
+	sigemptyset(&SigNewSet);								// 清空信号量
+	sigaddset(&SigNewSet, SIGHUP);							// 添加信号
+	sigaddset(&SigNewSet, SIGINT);							// 添加信号
+	
+	ret = sigprocmask(SIG_BLOCK, &SigNewSet, &SigOldSet);	// 阻塞信号
+	if( ret < 0){
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));
+		return -1;
+	}
+	printf("come to sleep!\n");
+//	sleep(60);												// 休眠等待信号发生
+	sigsuspend(&Sigset);									// 临时设置阻塞信号，并挂起
+	
+	sigpending(&Sigset);									// 获取被阻塞信号
+	ret = sigismember(&Sigset, SIGQUIT);					// 检测信号是否被阻塞
+	if( 1== ret){
+		printf("SIGQUIT is blocked!\n");
+	}
+	else if(0 == ret){
+		printf("SIGQUIT is not blocked!\n");
+	}
+	else{
+		printf("failed to call sigismember!\n");
+		return -1;
+	}
+	
+ 	ret = sigprocmask(SIG_SETMASK, &SigOldSet, NULL);		// 解除阻塞信号
+		if( ret < 0){
+		printf("errno value: %d, it means: %s\n",
+				errno, strerror(errno));
+		return -1;
+	}
+	
+	printf("wake up!\n");
+	while(1);
+	return 1;
+}
